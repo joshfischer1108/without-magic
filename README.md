@@ -2,7 +2,7 @@
 
 A single repository of bash-first, minimal examples that teach how systems actually work.
 
-Each sub-folder is a standalone topic.
+Each sub-folder is a standalone topic with its own README.
 You can clone this repo and run any topic independently without setting up the others.
 
 ## What “without magic” means
@@ -25,4 +25,4 @@ So the examples here prefer:
 2. Read that topic’s README
 3. Run the commands from inside that folder
 
-
+> If this was useful, consider starring the repo so others can find it.
