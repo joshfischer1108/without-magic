@@ -1,0 +1,89 @@
+#cloud-config
+package_update: true
+package_upgrade: false
+
+runcmd:
+  - DEBIAN_FRONTEND=noninteractive apt-get update
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y nginx ca-certificates curl
+
+  # Install Node.js 24.x
+  - curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs
+
+  # Create app directory
+  - mkdir -p /opt/node-app
+
+  # Write a tiny Node server
+  - |
+    cat >/opt/node-app/server.js << 'APP'
+    const http = require("http");
+
+    const port = process.env.PORT || 8080;
+    const host = process.env.HOST || "127.0.0.1";
+
+    const server = http.createServer((req, res) => {
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/json");
+
+      const payload = {
+        message: "Hello from Node on EC2 deployed by Terraform",
+        method: req.method,
+        path: req.url,
+        headers: req.headers,
+        time: new Date().toISOString()
+      };
+
+      res.end(JSON.stringify(payload, null, 2));
+    });
+
+    server.listen(port, host, () => {
+      console.log(`Server running at http://$${host}:$${port}/`);
+    });
+    APP
+
+  # systemd unit for the node app
+  - |
+    cat >/etc/systemd/system/node-app.service << 'UNIT'
+    [Unit]
+    Description=Simple Node App
+    After=network.target
+
+    [Service]
+    Type=simple
+    Environment=HOST=127.0.0.1
+    Environment=PORT=8080
+    WorkingDirectory=/opt/node-app
+    ExecStart=/usr/bin/node /opt/node-app/server.js
+    Restart=always
+    RestartSec=3
+    User=root
+
+    [Install]
+    WantedBy=multi-user.target
+    UNIT
+
+  - systemctl daemon-reload
+  - systemctl enable node-app
+  - systemctl start node-app
+
+  # Configure nginx reverse proxy to node on 8080
+  - rm -f /etc/nginx/sites-enabled/default
+  - |
+    cat >/etc/nginx/sites-available/app.conf << 'NGINX'
+    server {
+      listen 80;
+      server_name _;
+
+      location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+    }
+    NGINX
+
+  - ln -sf /etc/nginx/sites-available/app.conf /etc/nginx/sites-enabled/app.conf
+  - nginx -t
+  - systemctl restart nginx
