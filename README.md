@@ -19,10 +19,6 @@ So the examples here prefer:
 - commands over screenshots
 - clear failure modes
 
-## How to use this repo
-
-1. Pick a sub-folder under this main folder to learn
-2. Read that topic’s README
-3. Run the commands from inside that folder
+See [TOPICS.md](./TOPICS.md) for the list of available topics.
 
 > If this was useful, consider starring the repo so others can find it.
